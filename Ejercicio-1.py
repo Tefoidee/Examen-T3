@@ -1,13 +1,13 @@
 laberinto = [
-    ['F',  1,  1,  1,  0,  1,  1,  1,  1],   # fila 0  (superior)
-    [ -2,  0,  0, -1,  0,  1,  0,  1,  0],   # fila 1
-    [  1,  1,  0,  1,  1,  1,  0,  1,  0],   # fila 2
-    [  0,  1,  0, -1,  0,  0,  0, -1,  0],   # fila 3
-    [  1,  1,  1,  1,  1,  1,  1,  1,  0],   # fila 4
-    [ -1,  0,  0,  0,  0,  0,  0,  1,  1],   # fila 5
-    [  1,  1,  1,  1, -1, -1,  1,  1,  0],   # fila 6
-    [  1,  0,  0,  1,  0,  1,  0,  1,  0],   # fila 7
-    ['I',  1, -1,  1,  1,  1,  0,  1,  1],   # fila 8  (inferior)
+    ['F',  1,  1,  1,  0,  1,  1,  1,  1],
+    [ -2,  0,  0, -1,  0,  1,  0,  1,  0],
+    [  1,  1,  0,  1,  1,  1,  0,  1,  0],
+    [  0,  1,  0, -1,  0,  0,  0, -1,  0],
+    [  1,  1,  1,  1,  1,  1,  1,  1,  0],
+    [ -1,  0,  0,  0,  0,  0,  0,  1,  1],
+    [  1,  1,  1,  1, -1, -1,  1,  1,  0],
+    [  1,  0,  0,  1,  0,  1,  0,  1,  0],
+    ['I',  1, -1,  1,  1,  1,  0,  1,  1],
 ]
 
 FILAS           = 9
@@ -16,20 +16,20 @@ VIDAS_INICIALES = 3
 META            = (0, 0)
 INICIO          = (8, 0)
 
-# Orden: abajo, derecha, arriba, izquierda
 MOVS    = [(1, 0), (0, 1), (-1, 0), (0, -1)]
 NOMBRES = ['Abajo', 'Derecha', 'Arriba', 'Izquierda']
 
+todas_soluciones = []   # guarda todos los caminos encontrados
+
 
 def costo(celda):
-    """Retorna el costo de entrar a la celda (0, -1 o -2)."""
     if celda in ('I', 'F', 1):
         return 0
-    return celda  # -1 o -2
+    return celda
 
 
-def imprimir_laberinto(titulo, camino_set=None):
-    cs = camino_set or set()
+def imprimir_laberinto_con_camino(titulo, camino):
+    cs = set(camino)
     print(f"\n{titulo}")
     print("      " + "".join(f"{c:>4}" for c in range(COLS)))
     print("      " + "-" * (COLS * 4))
@@ -45,100 +45,103 @@ def imprimir_laberinto(titulo, camino_set=None):
 
 
 def backtracking(fila, col, vidas, camino, visitado):
-    """
-    Estamos en (fila, col) con `vidas` actuales.
-    Agrega la celda al camino, intenta avanzar; si falla retrocede.
-    Condición inviable: vidas < 0  (quedar en 0 es sobrevivir por un pelo)
-    """
+    """Busca TODAS las soluciones, sin detenerse en la primera."""
     camino.append((fila, col))
 
-    # Caso base: llegamos a F
     if (fila, col) == META:
-        return True
+        # Guardar copia de este camino como solución
+        todas_soluciones.append(list(camino))
+        camino.pop()
+        return   # continúa buscando más soluciones
 
     for (df, dc), nombre in zip(MOVS, NOMBRES):
         nf, nc = fila + df, col + dc
 
-        # Verificar límites
         if not (0 <= nf < FILAS and 0 <= nc < COLS):
             continue
         if visitado[nf][nc]:
             continue
 
         celda = laberinto[nf][nc]
-        if celda == 0:          # bloqueada
+        if celda == 0:
             continue
 
         nuevas_vidas = vidas + costo(celda)
-
-        # Camino inviable si vidas caen a negativo
         if nuevas_vidas < 0:
             continue
 
-        print(f"  → {nombre:10s}: ({fila},{col}) ➜ ({nf},{nc})"
-              f"  celda={str(celda):>3}  vidas: {vidas} → {nuevas_vidas}")
-
         visitado[nf][nc] = True
-        if backtracking(nf, nc, nuevas_vidas, camino, visitado):
-            return True
-
+        backtracking(nf, nc, nuevas_vidas, camino, visitado)
         visitado[nf][nc] = False
-        print(f"  ↩ Retrocede de ({nf},{nc}) a ({fila},{col})")
 
     camino.pop()
-    return False
+
+
+def mostrar_camino_detalle(num, camino):
+    print(f"\n{'─'*64}")
+    print(f"  SOLUCIÓN {num}  —  {len(camino)} pasos")
+    print(f"{'─'*64}")
+    vv = VIDAS_INICIALES
+    for paso, (r, c) in enumerate(camino):
+        celda = laberinto[r][c]
+        vv += costo(celda)
+        marca = "⚠" if vv == 0 else " "
+        print(f"  {marca} Paso {paso+1:2d}: fila={r}  col={c}"
+              f"  celda={str(celda):>3}  vidas = {vv}")
+    imprimir_laberinto_con_camino(f"Laberinto — Solución {num} (camino = *):", camino)
+    print(f"  Matriz de salida — Solución {num}:\n")
+    cs = set(camino)
+    for i, fila in enumerate(laberinto):
+        linea = ""
+        for j, celda in enumerate(fila):
+            if (i, j) in cs:
+                linea += f"{'*':>4}"
+            else:
+                linea += f"{str(celda):>4}"
+        print(linea)
 
 
 def main():
     print("=" * 64)
-    print("   LABERINTO CON BACKTRACKING  —  COMP1303A")
-    print("   Inicio : esquina inferior-izquierda  (I) = fila 8, col 0")
-    print("   Meta   : esquina superior-izquierda  (F) = fila 0, col 0")
+    print("   LABERINTO — TODAS LAS SOLUCIONES  |  COMP1303A")
+    print("   Inicio : (I) fila 8, col 0   →   Meta : (F) fila 0, col 0")
     print("   Vidas  : 3 iniciales  |  inviable si vidas < 0")
     print("=" * 64)
 
-    imprimir_laberinto("LABERINTO ORIGINAL:")
+    # Mostrar laberinto original
+    print("\nLABERINTO ORIGINAL:")
+    print("      " + "".join(f"{c:>4}" for c in range(COLS)))
+    print("      " + "-" * (COLS * 4))
+    for i, fila in enumerate(laberinto):
+        linea = f" {i:2d} |"
+        for j, celda in enumerate(fila):
+            linea += f"{str(celda):>4}"
+        print(linea)
 
+    # Ejecutar backtracking buscando TODAS las soluciones
     visitado = [[False] * COLS for _ in range(FILAS)]
     fi, ci = INICIO
     visitado[fi][ci] = True
-    camino = []
+    backtracking(fi, ci, VIDAS_INICIALES, [], visitado)
 
-    print("─" * 64)
-    print("RECORRIDO PASO A PASO (backtracking):")
-    print("─" * 64)
-
-    encontrado = backtracking(fi, ci, VIDAS_INICIALES, camino, visitado)
-
-    print("\n" + "=" * 64)
-    if encontrado:
-        print("   ✅  ¡SALIDA ENCONTRADA!")
-        print("=" * 64)
-        print(f"\n   Total de pasos: {len(camino)}\n")
-        vv = VIDAS_INICIALES
-        for paso, (r, c) in enumerate(camino):
-            celda = laberinto[r][c]
-            vv += costo(celda)
-            marca = "⚠" if vv == 0 else " "
-            print(f"  {marca} Paso {paso+1:2d}: fila={r}  col={c}"
-                  f"  celda={str(celda):>3}  vidas restantes = {vv}")
-
-        cs = set(camino)
-        imprimir_laberinto("LABERINTO — camino marcado con  *:", cs)
-
-        print("MATRIZ DE SALIDA (camino = *):\n")
-        for i, fila in enumerate(laberinto):
-            linea = ""
-            for j, celda in enumerate(fila):
-                if (i, j) in cs:
-                    linea += f"{'*':>4}"
-                else:
-                    linea += f"{str(celda):>4}"
-            print(linea)
+    print(f"\n{'='*64}")
+    if not todas_soluciones:
+        print("  ❌  NO SE ENCONTRÓ NINGUNA SOLUCIÓN VIABLE")
     else:
-        print("   ❌  NO SE ENCONTRÓ SALIDA VIABLE")
-        print("   El ratón no puede llegar a la meta sin perder todas sus vidas.")
-    print("\n" + "=" * 64)
+        print(f"  ✅  SE ENCONTRARON {len(todas_soluciones)} SOLUCIÓN(ES)")
+        print(f"{'='*64}")
+        for i, camino in enumerate(todas_soluciones, 1):
+            mostrar_camino_detalle(i, camino)
+
+    print(f"\n{'='*64}")
+    print(f"  RESUMEN FINAL")
+    print(f"{'='*64}")
+    for i, camino in enumerate(todas_soluciones, 1):
+        vv = VIDAS_INICIALES
+        for r, c in camino:
+            vv += costo(laberinto[r][c])
+        print(f"  Solución {i}: {len(camino)} pasos | vidas restantes = {vv}")
+    print(f"{'='*64}\n")
 
 
 if __name__ == "__main__":
